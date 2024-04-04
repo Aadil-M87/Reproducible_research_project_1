@@ -1,0 +1,94 @@
+---
+title: "PA1 Template"
+author: "Aadil Panjvani"
+date: "2024-04-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=TRUE}
+library(data.table)
+library(ggplot2)
+
+# Read the CSV file into a data frame
+data <- data.table::fread(input = "activity.csv")
+
+
+# Now you can work with the 'data' data frame
+head(data)  # View the first few rows of the data
+
+```
+## Plotting total number of steps per day
+```{r total number of steps}
+# avg steps per day
+total_steps<- data[, vapply(.SD,sum,na.rm=FALSE,numeric(1)), .SDcols = "steps", by=.(date)]
+
+#converting steps column into numeric
+total_steps$steps<- as.numeric(total_steps$steps)
+
+#mean and median of total steps per day
+mm_steps<-c(mean=mean(total_steps$V1, na.rm=TRUE), median=median(total_steps$V1,na.rm=TRUE))
+```
+```{r plot, fig.height=4}
+
+ggplot(total_steps, aes(x= V1))+ geom_histogram(fill="blue", binwidth = 1000)+labs(title="Daily steps", x="steps", y="frequency")
+
+```
+
+##Average daily activity pattern
+```{r}
+interval_data<- data[, vapply(.SD,mean,na.rm=TRUE,numeric(1)),.SDcols="steps",by=.(interval)]
+
+head(interval_data)
+```
+## Plot for avg. daily activity
+```{r , fig.height=4}
+ggplot(interval_data, aes(x=interval, y= V1))+geom_line(color="blue",size=1)+labs(title="Avg. daily steps",x="Intervals",y="Avg. steps")
+```
+## interval with max avg steps
+```{r}
+max_steps<- interval_data[V1==max(V1), .(max_interval=interval)]
+
+print(max_steps)
+```
+## Imputing missing values
+```{r}
+nrow(data[is.na(steps),])
+```
+## Handling missing values & data set without NA 
+```{r}
+data[is.na(steps),"steps"]<-data[,c(lapply(.SD,median,na.rm=TRUE)),.SDcols=c("steps")]
+
+Total_Steps <- data[, c(lapply(.SD, sum)), .SDcols = c("steps"), by = .(date)] 
+```
+## Mean and Median
+```{r}
+Total_Steps[, .(Mean_Steps = mean(steps), Median_Steps = median(steps))]
+
+```
+## Plotting new data without NA's
+```{r , fig.height= 4}
+ggplot(Total_Steps, aes(x = steps)) + geom_histogram(fill = "blue", binwidth = 1000) + labs(title = "Daily Steps", x = "Steps", y = "Frequency")
+```
+# Difference between activity pattern
+```{r}
+data <- data.table::fread(input = "activity.csv")
+data[, date := as.POSIXct(date, format = "%Y-%m-%d")]
+data[, `Day of Week`:= weekdays(x = date)]
+data[grepl(pattern = "Monday|Tuesday|Wednesday|Thursday|Friday", x = `Day of Week`), "weekday or weekend"] <- "weekday"
+data[grepl(pattern = "Saturday|Sunday", x = `Day of Week`), "weekday or weekend"] <- "weekend"
+data[, `weekday or weekend` := as.factor(`weekday or weekend`)]
+head(data, 10)
+
+data[is.na(steps), "steps"] <- data[, c(lapply(.SD, median, na.rm = TRUE)), .SDcols = c("steps")]
+IntervalDT <- data[, c(lapply(.SD, mean, na.rm = TRUE)), .SDcols = c("steps"), by = .(interval, `weekday or weekend`)] 
+```
+## Plotting the difference with 5 minutes interval
+
+
+```{r, fig.height=4}
+ggplot(IntervalDT , aes(x = interval , y = steps, color=`weekday or weekend`)) + geom_line() + labs(title = "Avg. Daily Steps by Weektype", x = "Interval", y = "No. of Steps") + facet_wrap(~`weekday or weekend` , ncol = 1, nrow=2)
+```
